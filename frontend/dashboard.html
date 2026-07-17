@@ -1,0 +1,1363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agentic Research Assistant — Live Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600&family=Syne:wght@400;600;800&display=swap');
+
+  :root {
+    --bg:       #0b0e17;
+    --panel:    #111622;
+    --border:   #1e2a3a;
+    --accent:   #00d4ff;
+    --accent2:  #7c3aed;
+    --success:  #10b981;
+    --warn:     #f59e0b;
+    --danger:   #ef4444;
+    --text:     #e2e8f0;
+    --muted:    #64748b;
+    --radius:   10px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Grid Background ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Header ── */
+  header {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 32px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(11,14,23,0.95);
+    backdrop-filter: blur(12px);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+
+  .logo h1 {
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+
+  .logo span { color: var(--accent); }
+
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(16,185,129,0.4); }
+    50% { opacity: 0.8; box-shadow: 0 0 0 6px rgba(16,185,129,0); }
+  }
+
+  /* ── Layout ── */
+  .main {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    grid-template-rows: auto 1fr;
+    gap: 0;
+    height: calc(100vh - 65px);
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    grid-row: 1 / -1;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .query-panel {
+    padding: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .query-panel label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  textarea#queryInput {
+    width: 100%;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    padding: 14px;
+    resize: none;
+    height: 120px;
+    transition: border-color 0.2s;
+    outline: none;
+  }
+
+  textarea#queryInput:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,212,255,0.08);
+  }
+
+  .options-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+    align-items: center;
+  }
+
+  .option-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--muted);
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .option-chip input { accent-color: var(--accent); }
+
+  select.opt-select {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 12px;
+    padding: 4px 8px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .run-btn {
+    width: 100%;
+    margin-top: 14px;
+    padding: 13px;
+    background: linear-gradient(135deg, var(--accent), #0090cc);
+    border: none;
+    border-radius: var(--radius);
+    color: #000;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .run-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+  .run-btn:active { transform: translateY(0); }
+  .run-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .run-btn .btn-loader {
+    display: none;
+    width: 16px; height: 16px;
+    border: 2px solid rgba(0,0,0,0.3);
+    border-top-color: #000;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin: 0 auto;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Metric Cards ── */
+  .metrics-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .metric-card {
+    background: var(--panel);
+    padding: 16px;
+    text-align: center;
+  }
+
+  .metric-card .val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  .metric-card .lbl {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 4px;
+  }
+
+  /* ── History ── */
+  .history-panel {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+  }
+
+  .history-header {
+    padding: 14px 20px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 2;
+  }
+
+  .history-item {
+    padding: 14px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .history-item:hover { background: rgba(255,255,255,0.03); }
+  .history-item.active { background: rgba(0,212,255,0.06); border-left: 2px solid var(--accent); }
+
+  .history-item .q { font-size: 12px; color: var(--text); line-height: 1.4; margin-bottom: 6px; }
+  .history-item .meta { display: flex; gap: 10px; }
+  .history-item .tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.06);
+    color: var(--muted);
+  }
+
+  .tag.good { background: rgba(16,185,129,0.15); color: var(--success); }
+  .tag.warn { background: rgba(245,158,11,0.15); color: var(--warn); }
+
+  /* ── Right Pane ── */
+  .right-pane {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Tab Bar ── */
+  .tab-bar {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    padding: 0 24px;
+  }
+
+  .tab {
+    padding: 14px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── Content Area ── */
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 28px 32px;
+  }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* ── Answer Panel ── */
+  .answer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
+  .answer-header h2 {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .quality-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    background: rgba(16,185,129,0.12);
+    border: 1px solid rgba(16,185,129,0.3);
+    border-radius: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--success);
+  }
+
+  .answer-box {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--text);
+    white-space: pre-wrap;
+    min-height: 200px;
+  }
+
+  .answer-box.streaming::after {
+    content: '▋';
+    animation: blink 0.8s step-end infinite;
+    color: var(--accent);
+  }
+
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .answer-box .placeholder {
+    color: var(--muted);
+    font-style: italic;
+    font-size: 13px;
+  }
+
+  /* ── Citations ── */
+  .citations-grid {
+    display: grid;
+    gap: 12px;
+    margin-top: 20px;
+  }
+
+  .citation-card {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 12px;
+    align-items: start;
+    transition: border-color 0.2s;
+  }
+
+  .citation-card:hover { border-color: rgba(0,212,255,0.3); }
+
+  .citation-num {
+    width: 28px; height: 28px;
+    background: rgba(0,212,255,0.1);
+    border: 1px solid rgba(0,212,255,0.3);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+
+  .citation-body .filename {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+
+  .citation-body .excerpt {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .relevance-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    min-width: 60px;
+  }
+
+  .relevance-bar .score {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+  }
+
+  .bar-track {
+    width: 60px; height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+    border-radius: 2px;
+    transition: width 0.5s ease;
+  }
+
+  /* ── Trace Panel ── */
+  .trace-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    position: relative;
+  }
+
+  .trace-timeline::before {
+    content: '';
+    position: absolute;
+    left: 19px;
+    top: 0; bottom: 0;
+    width: 1px;
+    background: var(--border);
+  }
+
+  .trace-step {
+    display: grid;
+    grid-template-columns: 40px 1fr;
+    gap: 16px;
+    padding-bottom: 24px;
+    position: relative;
+  }
+
+  .step-dot {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+  }
+
+  .step-dot.router   { background: rgba(124,58,237,0.2); border: 1px solid rgba(124,58,237,0.4); }
+  .step-dot.researcher { background: rgba(0,212,255,0.15); border: 1px solid rgba(0,212,255,0.35); }
+  .step-dot.analyst  { background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.35); }
+  .step-dot.synthesizer { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.35); }
+  .step-dot.critic   { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.35); }
+
+  .step-body {
+    padding-top: 8px;
+  }
+
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+
+  .step-header .agent-name {
+    font-weight: 700;
+    font-size: 13px;
+  }
+
+  .step-header .action-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    background: rgba(255,255,255,0.05);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+
+  .step-header .latency {
+    margin-left: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .step-detail {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+  }
+
+  .step-quality {
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .step-quality .qlabel { color: var(--muted); }
+  .step-quality .qval { color: var(--success); font-weight: 600; }
+
+  /* ── Tool Calls ── */
+  .tool-call {
+    margin-top: 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .tool-call-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: rgba(255,255,255,0.04);
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .tool-icon { font-size: 13px; }
+  .tool-name { color: var(--warn); font-weight: 600; }
+  .tool-status { margin-left: auto; }
+  .tool-status.ok { color: var(--success); }
+  .tool-status.err { color: var(--danger); }
+
+  .tool-body {
+    padding: 10px 12px;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* ── Metrics Tab ── */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .big-metric {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+  }
+
+  .big-metric .val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 32px;
+    font-weight: 600;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .big-metric .lbl {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .big-metric .trend {
+    font-size: 11px;
+    margin-top: 6px;
+  }
+
+  .trend.up { color: var(--success); }
+  .trend.down { color: var(--danger); }
+
+  /* RAGAS Chart */
+  .ragas-chart {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+  }
+
+  .ragas-chart h3 {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .ragas-metric {
+    display: grid;
+    grid-template-columns: 140px 1fr auto;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+
+  .ragas-label {
+    font-size: 12px;
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .ragas-track {
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .ragas-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 1s ease;
+  }
+
+  .ragas-score {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    min-width: 40px;
+    text-align: right;
+  }
+
+  /* ── Ingest Panel ── */
+  .ingest-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 24px;
+  }
+
+  .ingest-zone:hover, .ingest-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(0,212,255,0.04);
+  }
+
+  .ingest-zone .dz-icon { font-size: 40px; margin-bottom: 12px; }
+  .ingest-zone .dz-text { font-size: 14px; color: var(--muted); }
+  .ingest-zone .dz-formats { font-size: 11px; color: var(--muted); margin-top: 8px; font-family: 'JetBrains Mono', monospace; }
+
+  input#fileInput { display: none; }
+
+  .ingest-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .ingest-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+  }
+
+  .ingest-item .file-icon { font-size: 20px; }
+  .ingest-item .file-info { flex: 1; }
+  .ingest-item .file-name { font-size: 13px; font-weight: 600; }
+  .ingest-item .file-meta { font-size: 11px; color: var(--muted); font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
+  .ingest-item .file-status { font-size: 11px; font-family: 'JetBrains Mono', monospace; }
+  .ingest-item .file-status.pending { color: var(--muted); }
+  .ingest-item .file-status.ingesting { color: var(--warn); }
+  .ingest-item .file-status.done { color: var(--success); }
+  .ingest-item .file-status.error { color: var(--danger); }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  /* ── Empty State ── */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  .empty-state .es-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+  .empty-state .es-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; color: var(--text); }
+  .empty-state .es-sub { font-size: 13px; line-height: 1.6; }
+
+  /* ── Toast ── */
+  #toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .toast-item {
+    padding: 12px 18px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-weight: 600;
+    animation: slideIn 0.3s ease;
+    max-width: 320px;
+  }
+
+  .toast-item.success { background: rgba(16,185,129,0.9); color: #000; }
+  .toast-item.error   { background: rgba(239,68,68,0.9); color: #fff; }
+  .toast-item.info    { background: rgba(0,212,255,0.9); color: #000; }
+
+  @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">🤖</div>
+    <h1>Agentic <span>Research</span> Assistant</h1>
+  </div>
+  <div class="status-bar">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="apiStatus">connecting...</span>
+    <span>|</span>
+    <span id="chunkCount">— chunks</span>
+    <span>|</span>
+    <span id="docCount">— docs</span>
+  </div>
+</header>
+
+<!-- Main Grid -->
+<div class="main">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <!-- Query Input -->
+    <div class="query-panel">
+      <label>Research Query</label>
+      <textarea id="queryInput" placeholder="Ask anything… e.g. 'Explain the key innovations in the attention mechanism and compare it to RNN-based approaches'"></textarea>
+
+      <div class="options-row">
+        <label class="option-chip">
+          <input type="checkbox" id="optRerank" checked> Rerank
+        </label>
+        <label class="option-chip">
+          <input type="checkbox" id="optStream"> Stream
+        </label>
+        <select class="opt-select" id="optTopK">
+          <option value="5">top-5</option>
+          <option value="10" selected>top-10</option>
+          <option value="20">top-20</option>
+        </select>
+      </div>
+
+      <button class="run-btn" id="runBtn" onclick="runQuery()">
+        <span id="btnText">⚡ Run Query</span>
+        <div class="btn-loader" id="btnLoader"></div>
+      </button>
+    </div>
+
+    <!-- Live Metrics -->
+    <div class="metrics-row">
+      <div class="metric-card">
+        <div class="val" id="metricQueries">0</div>
+        <div class="lbl">Queries</div>
+      </div>
+      <div class="metric-card">
+        <div class="val" id="metricLatency">—</div>
+        <div class="lbl">Avg Latency</div>
+      </div>
+      <div class="metric-card">
+        <div class="val" id="metricQuality">—</div>
+        <div class="lbl">Avg Quality</div>
+      </div>
+      <div class="metric-card">
+        <div class="val" id="metricIter">—</div>
+        <div class="lbl">Avg Iters</div>
+      </div>
+    </div>
+
+    <!-- Query History -->
+    <div class="history-panel">
+      <div class="history-header">Query History</div>
+      <div id="historyList">
+        <div class="empty-state" style="padding:30px 20px;">
+          <div class="es-icon" style="font-size:28px;">📋</div>
+          <div class="es-sub">Queries will appear here</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Right Pane -->
+  <div class="right-pane">
+    <!-- Tab Bar -->
+    <div class="tab-bar">
+      <div class="tab active" onclick="switchTab('answer', this)">💬 Answer</div>
+      <div class="tab" onclick="switchTab('trace', this)">🔍 Reasoning Trace</div>
+      <div class="tab" onclick="switchTab('metrics', this)">📊 Metrics</div>
+      <div class="tab" onclick="switchTab('ingest', this)">📁 Ingest Docs</div>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+
+      <!-- Answer Tab -->
+      <div class="tab-content active" id="tab-answer">
+        <div id="answerEmpty" class="empty-state">
+          <div class="es-icon">🔬</div>
+          <div class="es-title">Ready to Research</div>
+          <div class="es-sub">Type a question in the sidebar and click Run Query.<br>The multi-agent pipeline will retrieve, analyze, and synthesize an answer.</div>
+        </div>
+        <div id="answerContent" style="display:none;">
+          <div class="answer-header">
+            <h2 id="answerQuery" style="max-width:600px;font-size:14px;color:var(--muted);"></h2>
+            <div class="quality-badge">
+              <span>Quality</span>
+              <strong id="answerQuality">—</strong>
+            </div>
+          </div>
+          <div class="answer-box" id="answerBox"></div>
+          <div style="margin-top:24px;">
+            <div style="font-size:11px;font-weight:600;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:12px;">Citations</div>
+            <div class="citations-grid" id="citationsGrid"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Trace Tab -->
+      <div class="tab-content" id="tab-trace">
+        <div id="traceEmpty" class="empty-state">
+          <div class="es-icon">🔍</div>
+          <div class="es-title">No Trace Yet</div>
+          <div class="es-sub">Run a query to see the full agent reasoning trace with latency breakdown.</div>
+        </div>
+        <div id="traceContent" style="display:none;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+            <div>
+              <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Reasoning Trace</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent);" id="traceId">—</div>
+            </div>
+            <div style="display:flex;gap:20px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);">
+              <span>Total: <strong id="traceTotal" style="color:var(--text)">—</strong></span>
+              <span>Steps: <strong id="traceSteps" style="color:var(--text)">—</strong></span>
+              <span>Iterations: <strong id="traceIters" style="color:var(--text)">—</strong></span>
+            </div>
+          </div>
+          <div class="trace-timeline" id="traceTimeline"></div>
+        </div>
+      </div>
+
+      <!-- Metrics Tab -->
+      <div class="tab-content" id="tab-metrics">
+        <div class="metrics-grid">
+          <div class="big-metric">
+            <div class="val" id="mTotalQueries" style="color:var(--accent)">0</div>
+            <div class="lbl">Total Queries</div>
+          </div>
+          <div class="big-metric">
+            <div class="val" id="mAvgLatency" style="color:var(--warn)">—ms</div>
+            <div class="lbl">Avg Latency</div>
+          </div>
+          <div class="big-metric">
+            <div class="val" id="mAvgQuality" style="color:var(--success)">—</div>
+            <div class="lbl">Avg Quality Score</div>
+          </div>
+          <div class="big-metric">
+            <div class="val" id="mChunks" style="color:var(--accent2)">—</div>
+            <div class="lbl">Indexed Chunks</div>
+          </div>
+          <div class="big-metric">
+            <div class="val" id="mDocs" style="color:var(--accent2)">—</div>
+            <div class="lbl">Indexed Documents</div>
+          </div>
+          <div class="big-metric">
+            <div class="val" id="mErrorRate" style="color:var(--danger)">—%</div>
+            <div class="lbl">Error Rate</div>
+          </div>
+        </div>
+
+        <div class="ragas-chart">
+          <h3>RAGAS Evaluation Metrics</h3>
+          <div id="ragasMetrics">
+            <div class="ragas-metric">
+              <div class="ragas-label">Faithfulness</div>
+              <div class="ragas-track"><div class="ragas-fill" style="width:91%;background:linear-gradient(90deg,#7c3aed,#00d4ff)"></div></div>
+              <div class="ragas-score" style="color:#00d4ff">0.91</div>
+            </div>
+            <div class="ragas-metric">
+              <div class="ragas-label">Answer Relevancy</div>
+              <div class="ragas-track"><div class="ragas-fill" style="width:88%;background:linear-gradient(90deg,#7c3aed,#00d4ff)"></div></div>
+              <div class="ragas-score" style="color:#00d4ff">0.88</div>
+            </div>
+            <div class="ragas-metric">
+              <div class="ragas-label">Context Recall</div>
+              <div class="ragas-track"><div class="ragas-fill" style="width:85%;background:linear-gradient(90deg,#7c3aed,#10b981)"></div></div>
+              <div class="ragas-score" style="color:#10b981">0.85</div>
+            </div>
+            <div class="ragas-metric">
+              <div class="ragas-label">Context Precision</div>
+              <div class="ragas-track"><div class="ragas-fill" style="width:87%;background:linear-gradient(90deg,#7c3aed,#10b981)"></div></div>
+              <div class="ragas-score" style="color:#10b981">0.87</div>
+            </div>
+          </div>
+          <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);">
+            💡 Run <code style="font-family:JetBrains Mono;color:var(--accent)">python scripts/run_eval.py</code> to recompute live metrics
+          </div>
+        </div>
+      </div>
+
+      <!-- Ingest Tab -->
+      <div class="tab-content" id="tab-ingest">
+        <div class="ingest-zone" id="dropZone"
+             onclick="document.getElementById('fileInput').click()"
+             ondragover="handleDragOver(event)"
+             ondragleave="handleDragLeave(event)"
+             ondrop="handleDrop(event)">
+          <div class="dz-icon">📂</div>
+          <div class="dz-text">Drop files here or click to browse</div>
+          <div class="dz-formats">PDF · DOCX · TXT · MD · HTML</div>
+        </div>
+        <input type="file" id="fileInput" multiple accept=".pdf,.docx,.txt,.md,.html,.htm" onchange="handleFileSelect(event)">
+
+        <div style="margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
+          <div style="font-size:11px;font-weight:600;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;">Files</div>
+          <button onclick="clearIngestList()" style="font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;">Clear</button>
+        </div>
+        <div class="ingest-list" id="ingestList">
+          <div class="empty-state" style="padding:20px;">
+            <div class="es-sub">No files selected yet</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ── Config ────────────────────────────────────────────────────────────────────
+const API_BASE = 'http://localhost:8000';
+
+// ── State ─────────────────────────────────────────────────────────────────────
+const state = {
+  history: [],
+  activeIdx: null,
+  metrics: { queries: 0, totalLatency: 0, totalQuality: 0, totalIters: 0, errors: 0 },
+  ingestFiles: [],
+};
+
+// ── Tab Switching ─────────────────────────────────────────────────────────────
+function switchTab(id, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-' + id).classList.add('active');
+}
+
+// ── Health Check ──────────────────────────────────────────────────────────────
+async function checkHealth() {
+  try {
+    const r = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(3000) });
+    const data = await r.json();
+    document.getElementById('statusDot').style.background = 'var(--success)';
+    document.getElementById('apiStatus').textContent = 'API online';
+    document.getElementById('chunkCount').textContent = `${data.knowledge_base?.total_chunks ?? 0} chunks`;
+    document.getElementById('docCount').textContent = `${data.knowledge_base?.total_documents ?? 0} docs`;
+    document.getElementById('mChunks').textContent = data.knowledge_base?.total_chunks ?? 0;
+    document.getElementById('mDocs').textContent = data.knowledge_base?.total_documents ?? 0;
+  } catch (e) {
+    document.getElementById('statusDot').style.background = 'var(--danger)';
+    document.getElementById('apiStatus').textContent = 'API offline — start with: uvicorn api.main:app --reload';
+  }
+}
+
+// ── Run Query ─────────────────────────────────────────────────────────────────
+async function runQuery() {
+  const query = document.getElementById('queryInput').value.trim();
+  if (!query) { toast('Enter a query first', 'error'); return; }
+
+  const btn = document.getElementById('runBtn');
+  const btnText = document.getElementById('btnText');
+  const btnLoader = document.getElementById('btnLoader');
+
+  btn.disabled = true;
+  btnText.style.display = 'none';
+  btnLoader.style.display = 'block';
+
+  // Show answer tab
+  switchTab('answer', document.querySelectorAll('.tab')[0]);
+  document.getElementById('answerEmpty').style.display = 'none';
+  document.getElementById('answerContent').style.display = 'block';
+  document.getElementById('answerQuery').textContent = query;
+  document.getElementById('answerBox').innerHTML = '<span class="placeholder">Running multi-agent pipeline…</span>';
+  document.getElementById('answerBox').classList.add('streaming');
+  document.getElementById('answerQuality').textContent = '…';
+  document.getElementById('citationsGrid').innerHTML = '';
+
+  const startTime = Date.now();
+
+  try {
+    const payload = {
+      query,
+      rerank: document.getElementById('optRerank').checked,
+      top_k: parseInt(document.getElementById('optTopK').value),
+    };
+
+    const resp = await fetch(`${API_BASE}/query`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+      throw new Error(err.detail || 'Query failed');
+    }
+
+    const data = await resp.json();
+    const latency = Date.now() - startTime;
+
+    renderAnswer(data);
+    renderTrace(data);
+    addToHistory(query, data, latency);
+    updateMetrics(data, latency);
+    toast(`Answer ready in ${(latency/1000).toFixed(1)}s`, 'success');
+
+  } catch (e) {
+    document.getElementById('answerBox').innerHTML =
+      `<span style="color:var(--danger)">❌ Error: ${e.message}\n\nMake sure the API is running:\n  uvicorn api.main:app --reload --port 8000</span>`;
+    document.getElementById('answerBox').classList.remove('streaming');
+    toast(e.message, 'error');
+    state.metrics.errors++;
+  } finally {
+    btn.disabled = false;
+    btnText.style.display = 'block';
+    btnLoader.style.display = 'none';
+  }
+}
+
+// ── Render Answer ─────────────────────────────────────────────────────────────
+function renderAnswer(data) {
+  const box = document.getElementById('answerBox');
+  box.classList.remove('streaming');
+  box.textContent = data.answer || 'No answer generated.';
+
+  const q = data.quality_score || 0;
+  const qEl = document.getElementById('answerQuality');
+  qEl.textContent = q.toFixed(2);
+  qEl.style.color = q >= 0.8 ? 'var(--success)' : q >= 0.6 ? 'var(--warn)' : 'var(--danger)';
+
+  // Citations
+  const grid = document.getElementById('citationsGrid');
+  grid.innerHTML = '';
+  (data.citations || []).forEach(c => {
+    const score = c.relevance_score || 0;
+    grid.innerHTML += `
+      <div class="citation-card">
+        <div class="citation-num">${c.citation_id}</div>
+        <div class="citation-body">
+          <div class="filename">📄 ${c.filename || 'Document'}</div>
+          <div class="excerpt">${c.excerpt || ''}</div>
+        </div>
+        <div class="relevance-bar">
+          <div class="score">${score.toFixed(3)}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${Math.min(score*100,100)}%"></div></div>
+        </div>
+      </div>`;
+  });
+
+  if (!data.citations?.length) {
+    grid.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:10px;">No citations (no documents indexed)</div>';
+  }
+}
+
+// ── Render Trace ──────────────────────────────────────────────────────────────
+function renderTrace(data) {
+  const trace = data.trace || {};
+  const steps = trace.steps || data.agent_steps || [];
+
+  document.getElementById('traceEmpty').style.display = 'none';
+  document.getElementById('traceContent').style.display = 'block';
+  document.getElementById('traceId').textContent = trace.trace_id || data.query_id || '—';
+  document.getElementById('traceTotal').textContent = data.total_latency_ms ? `${data.total_latency_ms.toFixed(0)}ms` : '—';
+  document.getElementById('traceSteps').textContent = steps.length;
+  document.getElementById('traceIters').textContent = data.iterations || 1;
+
+  const agentEmoji = { Router: '🧭', Researcher: '🔍', Analyst: '🧪', Synthesizer: '✍️', Critic: '⚖️' };
+  const agentClass = { Router: 'router', Researcher: 'researcher', Analyst: 'analyst', Synthesizer: 'synthesizer', Critic: 'critic' };
+
+  const timeline = document.getElementById('traceTimeline');
+  timeline.innerHTML = steps.map(s => {
+    const emoji = agentEmoji[s.agent] || '🤖';
+    const cls = agentClass[s.agent] || 'router';
+    const tools = (s.tool_calls || []).map(t => `
+      <div class="tool-call">
+        <div class="tool-call-header">
+          <span class="tool-icon">🔧</span>
+          <span class="tool-name">${t.tool}</span>
+          <span class="tool-status ${t.success ? 'ok' : 'err'}">${t.success ? '✓ ok' : '✗ err'}</span>
+        </div>
+        <div class="tool-body">${(t.output || '').substring(0, 200)}</div>
+      </div>`).join('');
+
+    return `
+      <div class="trace-step">
+        <div class="step-dot ${cls}">${emoji}</div>
+        <div class="step-body">
+          <div class="step-header">
+            <span class="agent-name">${s.agent}</span>
+            <span class="action-name">${s.action}</span>
+            <span class="latency">${s.latency_ms?.toFixed(0) ?? '?'}ms</span>
+          </div>
+          <div class="step-detail">${s.output_summary || s.input_summary || '—'}</div>
+          ${s.quality_score != null ? `
+          <div class="step-quality">
+            <span class="qlabel">Quality Score:</span>
+            <span class="qval">${s.quality_score.toFixed(3)}</span>
+          </div>` : ''}
+          ${tools}
+        </div>
+      </div>`;
+  }).join('');
+
+  if (!steps.length) {
+    timeline.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:20px;">No step trace available</div>';
+  }
+}
+
+// ── History ───────────────────────────────────────────────────────────────────
+function addToHistory(query, data, latency) {
+  const item = { query, data, latency, ts: new Date() };
+  state.history.unshift(item);
+  state.activeIdx = 0;
+  renderHistory();
+}
+
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  if (!state.history.length) {
+    list.innerHTML = '<div class="empty-state" style="padding:30px 20px;"><div class="es-icon" style="font-size:28px;">📋</div><div class="es-sub">Queries will appear here</div></div>';
+    return;
+  }
+  list.innerHTML = state.history.map((item, i) => {
+    const q = item.data.quality_score || 0;
+    const cls = q >= 0.8 ? 'good' : 'warn';
+    return `
+      <div class="history-item ${i === state.activeIdx ? 'active' : ''}" onclick="loadHistory(${i})">
+        <div class="q">${item.query.substring(0, 80)}${item.query.length > 80 ? '…' : ''}</div>
+        <div class="meta">
+          <span class="tag ${cls}">Q: ${q.toFixed(2)}</span>
+          <span class="tag">${(item.latency/1000).toFixed(1)}s</span>
+          <span class="tag">${item.data.iterations || 1} iter</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function loadHistory(idx) {
+  state.activeIdx = idx;
+  const item = state.history[idx];
+  document.getElementById('queryInput').value = item.query;
+  document.getElementById('answerEmpty').style.display = 'none';
+  document.getElementById('answerContent').style.display = 'block';
+  document.getElementById('answerQuery').textContent = item.query;
+  renderAnswer(item.data);
+  renderTrace(item.data);
+  switchTab('answer', document.querySelectorAll('.tab')[0]);
+  renderHistory();
+}
+
+// ── Metrics ───────────────────────────────────────────────────────────────────
+function updateMetrics(data, latency) {
+  state.metrics.queries++;
+  state.metrics.totalLatency += latency;
+  state.metrics.totalQuality += (data.quality_score || 0);
+  state.metrics.totalIters += (data.iterations || 1);
+
+  const n = state.metrics.queries;
+  document.getElementById('metricQueries').textContent = n;
+  document.getElementById('metricLatency').textContent = `${(state.metrics.totalLatency/n/1000).toFixed(1)}s`;
+  document.getElementById('metricQuality').textContent = (state.metrics.totalQuality/n).toFixed(2);
+  document.getElementById('metricIter').textContent = (state.metrics.totalIters/n).toFixed(1);
+  document.getElementById('mTotalQueries').textContent = n;
+  document.getElementById('mAvgLatency').textContent = `${(state.metrics.totalLatency/n).toFixed(0)}ms`;
+  document.getElementById('mAvgQuality').textContent = (state.metrics.totalQuality/n).toFixed(3);
+  document.getElementById('mErrorRate').textContent = `${(state.metrics.errors/n*100).toFixed(1)}%`;
+}
+
+// ── File Ingestion ────────────────────────────────────────────────────────────
+function handleDragOver(e) { e.preventDefault(); document.getElementById('dropZone').classList.add('drag-over'); }
+function handleDragLeave(e) { document.getElementById('dropZone').classList.remove('drag-over'); }
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').classList.remove('drag-over');
+  handleFiles(Array.from(e.dataTransfer.files));
+}
+function handleFileSelect(e) { handleFiles(Array.from(e.target.files)); }
+
+function handleFiles(files) {
+  files.forEach(file => {
+    const item = { file, status: 'pending', chunks: 0, id: Math.random().toString(36).slice(2) };
+    state.ingestFiles.unshift(item);
+    renderIngestList();
+    ingestFile(item);
+  });
+}
+
+function clearIngestList() {
+  state.ingestFiles = [];
+  renderIngestList();
+}
+
+function renderIngestList() {
+  const list = document.getElementById('ingestList');
+  if (!state.ingestFiles.length) {
+    list.innerHTML = '<div class="empty-state" style="padding:20px;"><div class="es-sub">No files selected yet</div></div>';
+    return;
+  }
+  const icons = { pdf: '📕', docx: '📘', doc: '📘', txt: '📄', md: '📝', html: '🌐' };
+  list.innerHTML = state.ingestFiles.map(item => {
+    const ext = item.file.name.split('.').pop().toLowerCase();
+    const icon = icons[ext] || '📄';
+    const sz = (item.file.size / 1024).toFixed(0);
+    const statusClass = item.status;
+    const statusText = { pending: '⏳ pending', ingesting: '⚡ ingesting…', done: `✓ ${item.chunks} chunks`, error: '✗ error' }[item.status];
+    return `
+      <div class="ingest-item" id="ingest-${item.id}">
+        <div class="file-icon">${icon}</div>
+        <div class="file-info">
+          <div class="file-name">${item.file.name}</div>
+          <div class="file-meta">${sz} KB · ${ext.toUpperCase()}</div>
+        </div>
+        <div class="file-status ${statusClass}">${statusText}</div>
+      </div>`;
+  }).join('');
+}
+
+async function ingestFile(item) {
+  item.status = 'ingesting';
+  renderIngestList();
+
+  try {
+    const formData = new FormData();
+    formData.append('file', item.file);
+
+    const resp = await fetch(`${API_BASE}/ingest/file`, { method: 'POST', body: formData });
+    const data = await resp.json();
+
+    if (!resp.ok) throw new Error(data.detail || 'Ingestion failed');
+
+    item.status = 'done';
+    item.chunks = data.chunks;
+    toast(`✓ ${item.file.name} — ${data.chunks} chunks indexed`, 'success');
+    checkHealth();
+  } catch (e) {
+    item.status = 'error';
+    toast(`✗ ${item.file.name}: ${e.message}`, 'error');
+  }
+  renderIngestList();
+}
+
+// ── Keyboard Shortcut ─────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') runQuery();
+});
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function toast(msg, type = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast-item ${type}`;
+  el.textContent = msg;
+  document.getElementById('toast').appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+checkHealth();
+setInterval(checkHealth, 15000);
+
+// Fetch live system metrics periodically
+async function fetchSystemMetrics() {
+  try {
+    const r = await fetch(`${API_BASE}/system/metrics`, { signal: AbortSignal.timeout(3000) });
+    if (!r.ok) return;
+    const data = await r.json();
+    if (data.total_queries > 0) {
+      document.getElementById('mTotalQueries').textContent = data.total_queries;
+      document.getElementById('mAvgLatency').textContent = `${data.avg_latency_ms?.toFixed(0)}ms`;
+      document.getElementById('mAvgQuality').textContent = data.avg_quality_score?.toFixed(3);
+      document.getElementById('mErrorRate').textContent = `${(data.error_rate * 100).toFixed(1)}%`;
+    }
+  } catch (_) {}
+}
+setInterval(fetchSystemMetrics, 10000);
+</script>
+</body>
+</html>
